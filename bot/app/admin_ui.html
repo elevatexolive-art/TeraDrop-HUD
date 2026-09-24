@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TeraDrop Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#08090c; --surface:#111318; --surface-2:#181b22; --fg:#f3f4f6;
+  --muted:#9aa0ab; --subtle:#6d7380; --border:rgba(243,244,246,.12);
+  --primary:#d7dde6; --primary-fg:#0b0c10; --ok:#7dcea0; --warn:#d6b07c; --danger:#d98989;
+  --radius:12px; --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box} html{-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 Figtree,system-ui,sans-serif}
+h1,h2,h3{font-family:Syne,system-ui,sans-serif;font-weight:600;letter-spacing:-.03em;text-wrap:balance}
+button,input,select,textarea{font:inherit} button{cursor:pointer}
+.hidden{display:none!important}
+.shell{min-height:100dvh}
+@media(min-width:960px){.shell{display:grid;grid-template-columns:240px 1fr}}
+.side{display:none;border-right:1px solid var(--border);padding:24px 16px}
+@media(min-width:960px){.side{display:flex;flex-direction:column}}
+.brand{padding:0 12px 24px}.brand strong{display:block;font-family:Syne,sans-serif;font-size:18px}
+.brand span{display:block;color:var(--subtle);font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+.nav{display:flex;flex-direction:column;gap:4px;flex:1}
+.nav button,.logout{height:44px;border:0;border-radius:8px;background:transparent;color:var(--muted);text-align:left;padding:0 12px}
+.nav button.active,.nav button:hover,.logout:hover{background:var(--surface-2);color:var(--fg)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border)}
+.top .meta{font:12px/1.3 "IBM Plex Mono",monospace;color:var(--muted)}
+.pill{border-radius:999px;padding:6px 12px;font-size:11px;font-weight:500}
+.pill.ok{background:rgba(125,206,160,.15);color:var(--ok)}
+.pill.warn{background:rgba(214,176,124,.15);color:var(--warn)}
+main{padding:20px 16px 88px;max-width:1080px}
+@media(min-width:960px){main{padding:28px 28px 48px}}
+.kicker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle)}
+.grid{display:grid;gap:12px;margin:18px 0}
+.stats{grid-template-columns:repeat(2,1fr)}
+@media(min-width:800px){.stats{grid-template-columns:repeat(4,1fr)}}
+.card,.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.stat b{display:block;font-family:Syne,sans-serif;font-size:26px;margin-top:6px}
+.stat span{color:var(--subtle);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.muted{color:var(--muted);font-size:13px}
+.mono{font-family:"IBM Plex Mono",monospace;font-size:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--subtle)}
+input,select,textarea{height:44px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);padding:0 12px;outline:none}
+textarea{height:auto;min-height:84px;padding:10px 12px;resize:vertical}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(197,204,214,.2)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn{height:44px;padding:0 16px;border:0;border-radius:8px;background:var(--primary);color:var(--primary-fg);font-weight:600}
+.btn.alt{background:var(--surface-2);color:var(--fg);border:1px solid var(--border)}
+.btn.danger{background:#5a2d2d;color:#fff}
+.formgrid{display:grid;gap:12px}
+@media(min-width:700px){.formgrid{grid-template-columns:1fr 1fr}}
+.formgrid .full{grid-column:1/-1}
+.notice{display:none;margin:0 16px 12px;padding:10px 12px;border-radius:8px;background:#153a34;color:#9af0cc}
+.notice.error{background:#3a2028;color:#ffb2bb}
+.login{min-height:100dvh;display:grid;place-items:center;padding:24px}
+.login .card{width:min(440px,100%)}
+.login h1{font-size:28px;line-height:1.15;margin:8px 0 12px}
+.chips{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
+.chip{height:40px;border:0;border-radius:999px;padding:0 12px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg)}
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px}
+.badge.live{background:rgba(125,206,160,.15);color:var(--ok)}
+.badge.restart{background:rgba(214,176,124,.15);color:var(--warn)}
+.bar{height:6px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:8px}
+.bar > i{display:block;height:100%;background:var(--primary);width:0}
+.job{background:var(--surface-2);border-radius:8px;padding:12px;margin-top:10px}
+.bottom{position:fixed;inset:auto 0 0;display:flex;gap:4px;overflow:auto;padding:8px;border-top:1px solid var(--border);background:rgba(8,9,12,.95)}
+@media(min-width:960px){.bottom{display:none}}
+.log{font:12px/1.6 "IBM Plex Mono",monospace;color:#b7c0ce;white-space:pre-wrap;max-height:360px;overflow:auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <div class="card">
+    <div class="kicker">TeraDrop · operations</div>
+    <h1>Control center</h1>
+    <p class="muted">Enter the admin password from <code>ADMIN_PANEL_PASSWORD</code>. Live keys apply without a reboot.</p>
+    <div class="field" style="margin-top:18px"><label>Admin password</label><input id="token" type="password" autocomplete="current-password"></div>
+    <div class="actions"><button class="btn" onclick="saveToken()">Open panel</button></div>
+  </div>
+</div>
+<div id="app" class="shell hidden">
+  <aside class="side">
+    <div class="brand"><strong>TeraDrop</strong><span>Control center</span></div>
+    <nav class="nav" id="sidenav"></nav>
+    <button class="logout" onclick="logout()">Log out</button>
+  </aside>
+  <div>
+    <header class="top">
+      <div><strong id="botname">TeraDrop</strong><div class="meta" id="botuser"></div></div>
+      <span class="pill ok" id="livepill">live</span>
+    </header>
+    <div id="notice" class="notice"></div>
+    <main id="view"></main>
+  </div>
+</div>
+<nav class="bottom" id="bottomnav"></nav>
+<script>
+const NAV=[
+  ["overview","Overview"],["environment","Environment"],["runtime","Runtime"],
+  ["plans","Plans"],["users","Users"],["channels","Channels"],["apps","Mini Apps"],["logs","Logs"]
+];
+let view="overview", data=null, envData=null, drafts={}, reveal={}, filterCat="all", query="";
+const $=id=>document.getElementById(id);
+function token(){return (sessionStorage.getItem("teradrop_admin_password")||"").trim()}
+function notice(msg,error=false){const n=$("notice");n.textContent=msg;n.className="notice"+(error?" error":"");n.style.display="block";setTimeout(()=>n.style.display="none",4200)}
+async function api(path,opts={}){
+  const res=await fetch(path,{...opts,headers:{"content-type":"application/json","authorization":"Bearer "+token(),...(opts.headers||{})}});
+  const body=await res.json().catch(()=>({error:"invalid server response"}));
+  if(res.status===401) throw new Error("invalid or missing admin password");
+  if(!res.ok) throw new Error(body.error||"request failed");
+  return body;
+}
+function saveToken(){
+  const value=$("token").value.trim();
+  if(!value){notice("enter the admin password",true);return}
+  sessionStorage.setItem("teradrop_admin_password",value);
+  boot().catch(err=>{sessionStorage.removeItem("teradrop_admin_password");notice(err.message,true)});
+}
+function logout(){sessionStorage.removeItem("teradrop_admin_password");location.reload()}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&","<":"<",">":">",'"':""","'":"&#039;"}[c]))}
+function navHtml(id){return NAV.map(([k,l])=>`<button class="${k===id?"active":""}" onclick="setView('${k}')">${l}</button>`).join("")}
+function setView(id){view=id; render()}
+async function boot(){
+  data=await api("/admin/api/summary");
+  envData=await api("/admin/api/env");
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  $("sidenav").innerHTML=navHtml(view);
+  $("bottomnav").innerHTML=navHtml(view);
+  render();
+}
+function render(){
+  $("sidenav").innerHTML=navHtml(view);
+  $("bottomnav").innerHTML=navHtml(view);
+  $("botname").textContent=(data.settings&&data.settings.bot_name)||"TeraDrop";
+  const maint=(data.settings||{}).maintenance==="on";
+  $("livepill").textContent=maint?"maintenance":"live";
+  $("livepill").className="pill "+(maint?"warn":"ok");
+  const v=$("view");
+  if(view==="overview") v.innerHTML=overview();
+  else if(view==="environment") v.innerHTML=environment();
+  else if(view==="runtime") v.innerHTML=runtime();
+  else if(view==="plans") v.innerHTML=plans();
+  else if(view==="users") v.innerHTML=users();
+  else if(view==="channels") v.innerHTML=channels();
+  else if(view==="apps") v.innerHTML=apps();
+  else v.innerHTML=logs();
+}
+function overview(){
+  const s=data.stats||{}, q=data.queue_detail||{};
+  const jobs=(q.active||[]);
+  return `<div class="kicker">Overview</div><h1>Operations</h1>
+  <section class="grid stats">
+    <div class="stat"><span>Users</span><b>${s.users??0}</b></div>
+    <div class="stat"><span>Downloads</span><b>${s.downloads??0}</b></div>
+    <div class="stat"><span>Premium</span><b>${s.premium??0}</b></div>
+    <div class="stat"><span>Queue</span><b>${data.queue??0}</b></div>
+  </section>
+  <section class="card"><h2>Isolated lanes</h2>
+  <p class="muted">Each transfer writes only under DOWNLOAD_DIR/u<user>/<job>/.</p>
+  ${jobs.length?jobs.map(j=>`<div class="job"><div class="row" style="border:0;padding:0"><strong>u${esc(j.user_id)} · ${esc(j.kind)}</strong><span class="mono">worker ${esc(j.worker)}</span></div><div class="muted mono">${esc(j.job_id)}</div></div>`).join(""):`<p class="muted">No transfers in flight.</p>`}
+  </section>`;
+}
+function environment(){
+  const vars=(envData&&envData.variables)||[];
+  const cats=["all",...Array.from(new Set(vars.map(x=>x.category)))];
+  const q=query.toLowerCase();
+  const rows=vars.filter(r=>{
+    if(filterCat!=="all"&&r.category!==filterCat) return false;
+    if(!q) return true;
+    return (r.key+" "+r.label+" "+(r.description||"")).toLowerCase().includes(q);
+  });
+  return `<div class="kicker">Environment</div><h1>.env control</h1>
+  <p class="muted">View, edit, and add values including BOT_TOKEN. Live keys apply immediately.</p>
+  <div class="field" style="margin:16px 0"><input placeholder="Search keys, for example BOT_TOKEN" value="${esc(query)}" oninput="query=this.value;render()"></div>
+  <div class="chips">${cats.map(c=>`<button class="chip ${c===filterCat?"on":""}" onclick="filterCat='${c}';render()">${c}</button>`).join("")}</div>
+  ${rows.map(r=>{
+    const val=drafts[r.key]??r.value??"";
+    const shown=!!reveal[r.key];
+    return `<article class="card" style="margin-top:12px">
+      <div class="row" style="border:0;padding:0">
+        <div><strong class="mono">${esc(r.key)}</strong>
+          <span class="badge ${r.restart?"restart":"live"}">${r.restart?"restart":"live"}</span>
+          <div class="muted">${esc(r.description||"")}</div></div>
+        <span class="muted">${esc(r.category)}</span>
+      </div>
+      <div class="actions">
+        <input style="flex:1" type="${r.sensitive&&!shown?"password":"text"}" value="${esc(val)}" oninput="drafts['${r.key}']=this.value">
+        ${r.sensitive?`<button class="btn alt" onclick="reveal['${r.key}']=${shown?"false":"true"};render()">${shown?"Hide":"Reveal"}</button>`:""}
+        <button class="btn" onclick="applyEnv('${r.key}')">Apply</button>
+        ${r.category==="custom"?`<button class="btn danger" onclick="delEnv('${r.key}')">Remove</button>`:""}
+      </div>
+    </article>`;
+  }).join("")}
+  <form class="card" style="margin-top:16px" onsubmit="addEnv(event)">
+    <h2>Add variable</h2>
+    <div class="formgrid">
+      <input id="newkey" class="mono" placeholder="NEW_KEY" required>
+      <input id="newval" placeholder="value">
+      <div class="actions full"><button class="btn">Add</button>
+        <button type="button" class="btn alt" onclick="restartBot()">Restart process</button></div>
+    </div>
+  </form>`;
+}
+async function applyEnv(key){
+  try{
+    const value=drafts[key]??"";
+    if(key==="BOT_TOKEN" && !confirm("Replace the bot token?")) return;
+    envData=await api("/admin/api/env",{method:"POST",body:JSON.stringify({key,value,reveal:true})});
+    delete drafts[key];
+    notice((envData.result&&envData.result.restart_required)?key+" saved · restart required":key+" applied live");
+    render();
+  }catch(e){notice(e.message,true)}
+}
+async function addEnv(ev){
+  ev.preventDefault();
+  const key=$("newkey").value.trim(); const value=$("newval").value;
+  try{envData=await api("/admin/api/env",{method:"POST",body:JSON.stringify({key,value})});notice("variable added");render()}
+  catch(e){notice(e.message,true)}
+}
+async function delEnv(key){
+  try{envData=await api("/admin/api/env",{method:"POST",body:JSON.stringify({key,delete:true})});notice("removed");render()}
+  catch(e){notice(e.message,true)}
+}
+async function restartBot(){
+  if(!confirm("Restart the bot process now?")) return;
+  try{await api("/admin/api/restart",{method:"POST",body:JSON.stringify({})});notice("restarting")}catch(e){notice(e.message,true)}
+}
+function runtime(){
+  const s=data.settings||{};
+  return `<div class="kicker">Runtime</div><h1>Live flags</h1>
+  <form class="card formgrid" onsubmit="saveSettings(event)">
+    <div class="field"><label>Upload limit MB</label><input name="limit" type="number" value="${esc(s.limit||"")}"></div>
+    <div class="field"><label>Workers</label><input name="max_concurrent" type="number" value="${esc(s.max_concurrent||"")}"></div>
+    <div class="field"><label>Maintenance</label><select name="maintenance"><option value="off" ${s.maintenance==="on"?"":"selected"}>off</option><option value="on" ${s.maintenance==="on"?"selected":""}>on</option></select></div>
+    <div class="field"><label>Bot access</label><select name="bot_public"><option value="true" ${s.bot_public==="true"?"selected":""}>public</option><option value="false" ${s.bot_public==="true"?"":"selected"}>authorised only</option></select></div>
+    <div class="field"><label>Log channel</label><input name="log_channel" value="${esc(s.log_channel||"")}"></div>
+    <div class="field"><label>Dump channel</label><input name="dump_channel" value="${esc(s.dump_channel||"")}"></div>
+    <div class="field full"><label>Welcome text</label><textarea name="welcome">${esc(s.welcome||"")}</textarea></div>
+    <div class="field full"><label>Caption template</label><textarea name="caption">${esc(s.caption||"")}</textarea></div>
+    <div class="actions full"><button class="btn">Save runtime</button></div>
+  </form>`;
+}
+async function saveSettings(ev){
+  ev.preventDefault();
+  const body=Object.fromEntries(new FormData(ev.target));
+  try{
+    await api("/admin/api/settings",{method:"POST",body:JSON.stringify(body)});
+    if(body.max_concurrent) await api("/admin/api/env",{method:"POST",body:JSON.stringify({key:"MAX_CONCURRENT",value:String(body.max_concurrent)})});
+    data=await api("/admin/api/summary"); notice("runtime saved"); render();
+  }catch(e){notice(e.message,true)}
+}
+function plans(){
+  const list=data.plans||[];
+  return `<div class="kicker">Plans</div><h1>Premium catalog</h1>
+  ${list.map(p=>`<div class="card row"><div><strong>${esc(p.label)}</strong><div class="muted">${esc(p.key)} · ₹${p.price} · ${p.duration_days} days · batch ${p.batch_limit} · ${p.total_links||"unlimited"}</div></div>
+  <div class="actions"><button class="btn alt" onclick='fillPlan(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Edit</button>
+  <button class="btn danger" onclick="hidePlan('${esc(p.key)}')">Hide</button></div></div>`).join("")}
+  <form class="card formgrid" id="plan-form" onsubmit="savePlan(event)">
+    <h2 class="full">Add or edit</h2>
+    <input name="key" placeholder="key" required><input name="label" placeholder="name" required>
+    <input name="short_label" placeholder="short name"><input name="price" type="number" step="0.01" placeholder="price">
+    <input name="duration_days" type="number" placeholder="days"><input name="batch_limit" type="number" placeholder="batch">
+    <input name="total_links" type="number" placeholder="total links, 0=unlimited">
+    <select name="active"><option value="true">enabled</option><option value="false">disabled</option></select>
+    <div class="actions full"><button class="btn">Save plan</button></div>
+  </form>`;
+}
+function fillPlan(p){const f=$("plan-form"); Object.keys(p).forEach(k=>{if(f.elements[k]) f.elements[k].value=p[k]})}
+async function savePlan(ev){
+  ev.preventDefault();
+  const body=Object.fromEntries(new FormData(ev.target));
+  body.price=Number(body.price); body.duration_days=Number(body.duration_days);
+  body.batch_limit=Number(body.batch_limit); body.total_links=Number(body.total_links); body.active=body.active==="true";
+  try{await api("/admin/api/plan",{method:"POST",body:JSON.stringify(body)});data=await api("/admin/api/summary");notice("plan saved");render()}
+  catch(e){notice(e.message,true)}
+}
+async function hidePlan(key){if(!confirm("Hide this plan?"))return;try{await api("/admin/api/plan/delete",{method:"POST",body:JSON.stringify({key})});data=await api("/admin/api/summary");render()}catch(e){notice(e.message,true)}}
+function users(){
+  const list=data.users||[];
+  return `<div class="kicker">Users</div><h1>Accounts</h1>
+  <form class="card formgrid" onsubmit="userAction(event)">
+    <input name="user_id" type="number" placeholder="telegram user id" required>
+    <select name="action"><option value="premium">grant premium</option><option value="ban">ban</option><option value="unban">unban</option></select>
+    <input name="plan_key" value="r" placeholder="plan key">
+    <input name="days" type="number" value="30">
+    <div class="actions full"><button class="btn">Apply</button></div>
+  </form>
+  ${list.map(u=>`<div class="row"><div><strong>${esc(u.first_name||u.username||u.user_id)}</strong><div class="muted mono">${u.user_id} · ${u.downloads} files · ${esc(u.plan_key)}</div></div><span class="badge ${u.banned?"restart":"live"}">${u.banned?"banned":u.plan_key}</span></div>`).join("")||"<p class='muted'>no users yet</p>"}`;
+}
+async function userAction(ev){
+  ev.preventDefault();
+  try{await api("/admin/api/user",{method:"POST",body:JSON.stringify(Object.fromEntries(new FormData(ev.target)))});data=await api("/admin/api/summary");notice("user action applied");render()}
+  catch(e){notice(e.message,true)}
+}
+function channels(){
+  const list=data.force_subs||[];
+  return `<div class="kicker">Channels</div><h1>Force-sub</h1>
+  ${list.map(x=>`<div class="row"><div><strong>${esc(x.chat_id)}</strong><div class="muted">${esc(x.invite_url||"")}</div></div>
+  <button class="btn danger" onclick="removeForce('${esc(x.chat_id)}')">Remove</button></div>`).join("")||"<p class='muted'>no channels</p>"}
+  <form class="card formgrid" onsubmit="addForce(event)">
+    <input name="chat_id" placeholder="channel id or @username" required>
+    <input name="invite_url" placeholder="invite url, optional">
+    <div class="actions full"><button class="btn">Add</button></div>
+  </form>`;
+}
+async function addForce(ev){ev.preventDefault();try{await api("/admin/api/force-sub",{method:"POST",body:JSON.stringify(Object.fromEntries(new FormData(ev.target)))});data=await api("/admin/api/summary");render()}catch(e){notice(e.message,true)}}
+async function removeForce(chat_id){try{await api("/admin/api/force-sub",{method:"POST",body:JSON.stringify({chat_id,remove:true})});data=await api("/admin/api/summary");render()}catch(e){notice(e.message,true)}}
+function apps(){
+  const m=data.mini_apps||{};
+  return `<div class="kicker">Mini Apps</div><h1>Resolver connections</h1>`+
+    Object.entries(m).map(([n,x])=>`<div class="row"><div><strong>${esc(n)}</strong><div class="muted">${esc(x.url||"not configured")}</div></div><span class="badge ${x.status==="ready"?"live":"restart"}">${esc(x.status)}</span></div>`).join("");
+}
+function logs(){return `<div class="kicker">Logs</div><h1>Recent events</h1><div class="card log">${esc((data.logs||[]).join("\n"))||"no logs yet"}</div>`}
+boot().catch(()=>{});
+</script>
+</body>
+</html>

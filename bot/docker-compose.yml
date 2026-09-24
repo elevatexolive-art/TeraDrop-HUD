@@ -1,0 +1,65 @@
+services:
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    container_name: teradrop-telegram-api
+    restart: unless-stopped
+    command:
+      - "--api-id=${TELEGRAM_API_ID:?Set TELEGRAM_API_ID in .env}"
+      - "--api-hash=${TELEGRAM_API_HASH:?Set TELEGRAM_API_HASH in .env}"
+      - "--local"
+      - "--http-port=8081"
+    volumes:
+      - telegram-api-data:/var/lib/telegram-bot-api
+    expose:
+      - "8081"
+
+  teradrop:
+    build: .
+    container_name: teradrop-bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DOWNLOAD_DIR: /app/data/tmp
+      DATA_DIR: /app/data
+      HEALTH_PORT: 8080
+      TERABOXDL_URL: ${TERABOXDL_URL:-https://www.teraboxdl.site}
+      SOLVER_URL: ${SOLVER_URL:-http://caboose.proxy.rlwy.net:42271}
+      UPFILES_SOLVER_URL: ${UPFILES_SOLVER_URL:-${SOLVER_URL:-http://caboose.proxy.rlwy.net:42271}}
+      UPFILES_TURNSTILE_SITEKEY: ${UPFILES_TURNSTILE_SITEKEY:-0x4AAAAAACOs2qXUfX8e7LFB}
+      SOLVER_TIMEOUT: ${SOLVER_TIMEOUT:-60}
+      # Always use the local Bot API on this VPS, even if an old .env still
+      # contains the previous Railway-only hostname.
+      BOT_API_URL: http://telegram-bot-api:8081
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      PUBLIC_HOST: ${PUBLIC_HOST:-13.50.243.238}
+      PUBLIC_PORT: ${PUBLIC_PORT:-6969}
+    volumes:
+      - teradrop-data:/app/data
+      - ./.env:/app/.env
+    expose:
+      - "8080"
+    depends_on:
+      - telegram-bot-api
+
+  # Public HTTPS entry point. The bot and local Bot API remain private.
+  https:
+    image: caddy:2-alpine
+    container_name: teradrop-https
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:-13.50.243.238}
+      PUBLIC_PORT: ${PUBLIC_PORT:-6969}
+    ports:
+      - "${PUBLIC_PORT:-6969}:${PUBLIC_PORT:-6969}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - teradrop
+
+volumes:
+  teradrop-data:
+  telegram-api-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,17 @@
+{
+	# Public stream links are HTTP on PUBLIC_PORT (see PUBLIC_BASE_URL).
+	# This avoids Telegram in-app browser certificate warnings. Point a
+	# real domain here and enable TLS later if you want HTTPS.
+	auto_https off
+}
+
+:{$PUBLIC_PORT} {
+	encode gzip
+	reverse_proxy teradrop:8080 {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}

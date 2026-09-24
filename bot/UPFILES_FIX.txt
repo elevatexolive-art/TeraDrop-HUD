@@ -1,0 +1,65 @@
+TeraDrop UpFiles Turnstile fix
+==============================
+
+What was actually broken
+------------------------
+The error "solver must be called with the UpFiles sitekey, not the TeraBox one"
+was misleading. Logs already showed the correct UpFiles sitekey
+(0x4AAAAAACOs2qXUfX8e7LFB).
+
+After SOLVER_URL / UPFILES_SOLVER_URL were pointed at
+http://hayabusa.proxy.rlwy.net:46794, the bot's HTTP client to Violetics was:
+
+  payload timeout = 35s
+  httpx timeout   = 40s
+  keep-alive on, follow_redirects on, only 2 attempts
+
+Violetics aborts at timeout+15s and Railway's TCP proxy RSTs reused sockets.
+httpx then reports "Server disconnected without sending a response" in ~0.5s,
+the fake Playwright stub never gets a token, and the bot shows that error.
+
+The solver itself is fine. A correct client gets a token in ~3s, and posting
+cf-turnstile-response to UpFiles passes the captcha.
+
+What changed
+------------
+app/solver.py
+  - HTTP/1.1, Connection: close, no keep-alive
+  - client timeout = payload timeout + 25s
+  - retries on disconnect / 502 / 503 / 504 / browser_error
+  - solve_turnstile(siteurl, sitekey=...) so UpFiles never sends the TeraBox key
+
+app/resolvers/upfiles.py
+  - uses the shared robust solver
+  - fallback widget runs on the REAL captcha page (not a stub)
+  - waits for #link-button:not(.disabled) / .get-link-ready
+  - honest error if the solver is down
+
+app/settings.py
+  - UPFILES_TURNSTILE_SITEKEY (was in .env but ignored)
+  - SOLVER_TIMEOUT (default 60)
+  - UPFILES_PLAYWRIGHT_TIMEOUT default 90
+
+docker-compose.yml
+  - forwards UPFILES_SOLVER_URL, UPFILES_TURNSTILE_SITEKEY, SOLVER_TIMEOUT
+
+.env (optional, already compatible)
+  SOLVER_URL=http://hayabusa.proxy.rlwy.net:46794
+  UPFILES_SOLVER_URL=http://hayabusa.proxy.rlwy.net:46794
+  UPFILES_TURNSTILE_SITEKEY=0x4AAAAAACOs2qXUfX8e7LFB
+  SOLVER_TIMEOUT=60
+
+How to deploy
+-------------
+Replace these files on the VPS (or copy this whole folder), then:
+
+    docker compose up -d --build
+
+Send https://upfiles.com/uTNc again. You should see
+"upfiles violetics solve ..." then "solver turnstile ok" in the logs,
+not "Server disconnected".
+
+Security
+--------
+A live BOT_TOKEN appeared in the docker logs that were pasted. Rotate it
+in BotFather after deploying.

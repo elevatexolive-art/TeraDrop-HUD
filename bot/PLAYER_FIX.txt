@@ -1,0 +1,45 @@
+TeraDrop web player fix
+=======================
+
+What was broken
+---------------
+TeraBox "stream" links are often HLS playlists (Content-Type:
+application/vnd.apple.mpegurl, starting with #EXTM3U), not MP4 files.
+
+The old page always did:
+
+    <video><source src="/media/..." type="video/mp4"></video>
+
+and the server first tried ffmpeg remux with a 20s timeout, then dumped the
+raw m3u8 into that MP4 player. Chrome / Firefox / Android / Telegram WebView
+cannot play HLS that way, so the player showed "this stream could not start".
+
+What changed
+------------
+app/webproxy.py
+  - Detects HLS / MP4 / WebM / MKV / TS
+  - Plays HLS with hls.js (Safari/iOS uses native HLS)
+  - Rewrites playlist segments through /media/<token>?t=p so auth headers
+    and CORS work inside Telegram
+  - ffmpeg remux is a fallback button / automatic fallback, not the default
+    for HLS
+
+app/main.py
+  - OPTIONS handler for CORS preflight on /media
+
+app/resolver.py
+  - Flezen and VidBunker stream fetches now keep their auth headers
+
+Caddyfile
+  - HTTP on PUBLIC_PORT (matches PUBLIC_BASE_URL=http://...)
+  - flush_interval -1 so video bytes are not buffered
+
+How to deploy
+-------------
+Replace the files on the VPS (or copy this whole folder), then:
+
+    docker compose up -d --build
+
+Open a Stream button again. After the short browser check, the video should
+start. If a rare file still fails, use "try remux" or "open direct download"
+on the same page.

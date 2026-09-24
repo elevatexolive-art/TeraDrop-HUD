@@ -1,0 +1,11 @@
+{
+    # The VPS uses a bare IP, so Caddy creates an encrypted internal
+    # certificate. See README.md for using a publicly trusted certificate.
+    auto_https off
+}
+
+https://{$PUBLIC_HOST}:{$PUBLIC_PORT} {
+    tls internal
+    encode gzip
+    reverse_proxy teradrop:8080
+}
