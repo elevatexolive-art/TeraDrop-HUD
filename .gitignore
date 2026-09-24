@@ -3,3 +3,9 @@ node_modules/
 .github_repo
 .env
 .env.*
+.vercel/
+screenshots/
+*.log
+.DS_Store
+bot/app/__pycache__/
+bot/app/resolvers/__pycache__/

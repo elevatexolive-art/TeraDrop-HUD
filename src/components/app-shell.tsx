@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin, type ViewId } from "@/lib/admin-store";
+import { HudClock } from "@/components/hud/telemetry";
 import { OverviewView } from "@/components/views/overview";
 import { EnvironmentView } from "@/components/views/environment";
 import { RuntimeView } from "@/components/views/runtime";
@@ -40,6 +41,7 @@ export function AppShell() {
   const jobs = useAdmin((s) => s.jobs);
   const tickJobs = useAdmin((s) => s.tickJobs);
   const maintenance = useAdmin((s) => s.settings.maintenance);
+  const live = jobs.filter((j) => j.progress < 100).length;
 
   useEffect(() => {
     const id = window.setInterval(tickJobs, 900);
@@ -47,11 +49,11 @@ export function AppShell() {
   }, [tickJobs]);
 
   return (
-    <div className="min-h-dvh bg-bg lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r border-border lg:flex lg:flex-col lg:px-4 lg:py-6">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[220px_1fr]">
+      <aside className="hidden border-r border-border/70 lg:flex lg:flex-col lg:px-3 lg:py-6">
         <div className="px-3">
-          <p className="font-display text-lg font-semibold tracking-tight">TeraDrop</p>
-          <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-subtle">Control center</p>
+          <p className="font-display text-lg font-semibold tracking-[0.22em]">TERADROP</p>
+          <p className="mt-1 hud-kicker text-primary">Control HUD</p>
         </div>
         <nav className="mt-8 flex flex-1 flex-col gap-1">
           {NAV.map((item) => {
@@ -61,11 +63,12 @@ export function AppShell() {
               <button
                 key={item.id}
                 onClick={() => setView(item.id)}
+                data-active={active}
                 className={cn(
-                  "flex h-11 items-center gap-3 rounded-md px-3 text-sm transition-colors duration-[var(--motion-quick)]",
+                  "hud-nav-btn flex h-11 items-center gap-3 px-3 text-sm tracking-wide transition-colors duration-[var(--motion-quick)]",
                   active
-                    ? "bg-surface-2 text-foreground"
-                    : "text-muted-foreground hover:bg-surface hover:text-foreground",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                 )}
               >
                 <Icon className="size-4" />
@@ -76,7 +79,7 @@ export function AppShell() {
         </nav>
         <button
           onClick={logout}
-          className="mt-4 flex h-11 items-center gap-3 rounded-md px-3 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+          className="mt-4 flex h-11 items-center gap-3 px-3 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground"
         >
           <LogOut className="size-4" />
           Log out
@@ -84,39 +87,41 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
+        <header className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 sm:px-6">
           <div className="min-w-0">
-            <p className="truncate font-display text-base font-semibold">{env.BOT_NAME || "TeraDrop"}</p>
-            <p className="truncate font-mono text-xs text-muted-foreground">@{env.BOT_USERNAME || "TeraDropBot"}</p>
+            <p className="truncate font-display text-base font-semibold tracking-[0.18em]">
+              {env.BOT_NAME || "TeraDrop"}
+            </p>
+            <p className="truncate font-display text-xs tracking-widest text-muted-foreground">
+              @{env.BOT_USERNAME || "TeraDropBot"}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden rounded-full border border-border px-3 py-1 font-mono text-[11px] text-muted-foreground sm:inline">
-              {jobs.filter((j) => j.progress < 100).length} live lanes
+          <div className="flex items-center gap-3">
+            <HudClock />
+            <span className="hidden font-display text-xs tracking-widest text-muted-foreground sm:inline">
+              {live} lanes
             </span>
-            <span
-              className={cn(
-                "rounded-full px-3 py-1 text-[11px] font-medium",
-                maintenance ? "bg-warn/15 text-warn" : "bg-ok/15 text-ok",
-              )}
-            >
-              {maintenance ? "maintenance" : "live"}
+            <span className={cn("hud-live font-display text-xs tracking-[0.2em] uppercase", maintenance ? "text-warn" : "text-ok")}>
+              {maintenance ? "hold" : "live"}
             </span>
           </div>
         </header>
 
         <main className="flex-1 px-4 py-5 pb-24 sm:px-6 lg:pb-8">
-          {view === "overview" && <OverviewView />}
-          {view === "environment" && <EnvironmentView />}
-          {view === "runtime" && <RuntimeView />}
-          {view === "plans" && <PlansView />}
-          {view === "users" && <UsersView />}
-          {view === "channels" && <ChannelsView />}
-          {view === "apps" && <AppsView />}
-          {view === "logs" && <LogsView />}
+          <div key={view} className="hud-enter">
+            {view === "overview" && <OverviewView />}
+            {view === "environment" && <EnvironmentView />}
+            {view === "runtime" && <RuntimeView />}
+            {view === "plans" && <PlansView />}
+            {view === "users" && <UsersView />}
+            {view === "channels" && <ChannelsView />}
+            {view === "apps" && <AppsView />}
+            {view === "logs" && <LogsView />}
+          </div>
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-1 overflow-x-auto border-t border-border bg-bg/95 px-2 py-2 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-1 overflow-x-auto border-t border-border/70 bg-bg/80 px-2 py-2 backdrop-blur-md lg:hidden">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;
@@ -125,8 +130,8 @@ export function AppShell() {
               key={item.id}
               onClick={() => setView(item.id)}
               className={cn(
-                "flex h-11 min-w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-2 text-[10px]",
-                active ? "text-foreground" : "text-muted-foreground",
+                "flex h-11 min-w-16 shrink-0 flex-col items-center justify-center gap-0.5 px-2 text-[0.65rem] tracking-wider uppercase",
+                active ? "text-primary" : "text-muted-foreground",
               )}
             >
               <Icon className="size-4" />

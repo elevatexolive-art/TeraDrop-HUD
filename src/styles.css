@@ -1,32 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Oxanium", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Oxanium", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #08090c;
-  --color-surface: #111318;
-  --color-surface-2: #181b22;
-  --color-foreground: #f3f4f6;
-  --color-muted-foreground: #9aa0ab;
-  --color-subtle: #6d7380;
-  --color-border: color-mix(in oklab, #f3f4f6 12%, transparent);
-  --color-primary: #d7dde6;
-  --color-primary-foreground: #0b0c10;
-  --color-secondary: #15181f;
-  --color-secondary-foreground: #e8eaee;
-  --color-ring: #c5ccd6;
-  --color-ok: #7dcea0;
-  --color-warn: #d6b07c;
-  --color-danger: #d98989;
-  --color-accent: #c5ccd6;
+  --color-bg: #04070c;
+  --color-surface: color-mix(in oklab, #07131c 82%, transparent);
+  --color-surface-2: #0b1822;
+  --color-foreground: #def4ff;
+  --color-muted-foreground: #8fb4c6;
+  --color-subtle: #5d7e8f;
+  --color-border: color-mix(in oklab, #6ee7ff 22%, transparent);
+  --color-primary: #6ee7ff;
+  --color-primary-foreground: #031018;
+  --color-secondary: #0b1822;
+  --color-secondary-foreground: #def4ff;
+  --color-ring: #6ee7ff;
+  --color-ok: #6ee7ff;
+  --color-warn: #f0c674;
+  --color-danger: #ff7a88;
+  --color-accent: #6ee7ff;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-quick: 150ms;
@@ -42,6 +42,7 @@
     background: var(--color-bg);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    letter-spacing: 0.01em;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -50,15 +51,203 @@
   h1, h2, h3 {
     text-wrap: balance;
     font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   p {
     text-wrap: pretty;
   }
+  select {
+    color: var(--color-foreground);
+    background: var(--color-surface-2);
+  }
+}
+
+@layer components {
+  .hud-kicker {
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--color-subtle);
+  }
+
+  .hud-panel {
+    position: relative;
+    background:
+      linear-gradient(180deg, color-mix(in oklab, #0c2230 70%, transparent), color-mix(in oklab, #07131c 88%, transparent));
+    border: 1px solid var(--color-border);
+    clip-path: polygon(
+      10px 0, calc(100% - 10px) 0, 100% 10px,
+      100% calc(100% - 10px), calc(100% - 10px) 100%,
+      10px 100%, 0 calc(100% - 10px), 0 10px
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--color-primary) 18%, transparent),
+      0 0 24px color-mix(in oklab, var(--color-primary) 8%, transparent);
+  }
+
+  .hud-panel::before,
+  .hud-panel::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    border-color: var(--color-primary);
+    border-style: solid;
+    opacity: 0.85;
+  }
+  .hud-panel::before {
+    top: 0;
+    left: 0;
+    border-width: 1px 0 0 1px;
+  }
+  .hud-panel::after {
+    right: 0;
+    bottom: 0;
+    border-width: 0 1px 1px 0;
+  }
+
+  .hud-scanlines {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      color-mix(in oklab, #000 18%, transparent) 3px
+    );
+    mix-blend-mode: multiply;
+    opacity: 0.22;
+  }
+
+  .hud-vignette {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background:
+      radial-gradient(ellipse at center, transparent 40%, #02050a 100%),
+      linear-gradient(180deg, color-mix(in oklab, #6ee7ff 6%, transparent), transparent 18%, transparent 82%, #02050a);
+  }
+
+  .hud-floor {
+    pointer-events: none;
+    position: fixed;
+    left: -20%;
+    right: -20%;
+    bottom: -35%;
+    height: 70%;
+    z-index: 0;
+    background-image:
+      linear-gradient(color-mix(in oklab, var(--color-primary) 18%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in oklab, var(--color-primary) 18%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    transform: perspective(600px) rotateX(68deg);
+    transform-origin: center top;
+    mask-image: linear-gradient(to bottom, transparent, #000 30%, transparent 80%);
+    animation: hud-floor-drift 28s linear infinite;
+  }
+
+  .hud-orbit {
+    pointer-events: none;
+    position: absolute;
+    border: 1px solid color-mix(in oklab, var(--color-primary) 28%, transparent);
+    border-radius: 50%;
+    transform-style: preserve-3d;
+  }
+
+  .hud-live {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .hud-live::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--color-ok);
+    box-shadow: 0 0 10px var(--color-ok);
+    animation: hud-pulse 1.8s var(--ease-out) infinite;
+  }
+
+  .hud-nav-btn {
+    position: relative;
+    overflow: hidden;
+  }
+  .hud-nav-btn[data-active="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 18%;
+    bottom: 18%;
+    width: 2px;
+    background: var(--color-primary);
+    box-shadow: 0 0 10px var(--color-primary);
+  }
+}
+
+@keyframes hud-floor-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 48px, 48px 0; }
+}
+
+@keyframes hud-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.7); }
+}
+
+@keyframes hud-spin {
+  from { transform: rotateX(66deg) rotateZ(0deg); }
+  to { transform: rotateX(66deg) rotateZ(360deg); }
+}
+
+@keyframes hud-spin-rev {
+  from { transform: rotateX(72deg) rotateZ(360deg); }
+  to { transform: rotateX(72deg) rotateZ(0deg); }
+}
+
+@keyframes hud-enter {
+  from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes hud-sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(220%); }
+}
+
+.hud-enter {
+  animation: hud-enter 520ms var(--ease-out) both;
+}
+.hud-enter-d1 { animation-delay: 80ms; }
+.hud-enter-d2 { animation-delay: 160ms; }
+.hud-enter-d3 { animation-delay: 240ms; }
+.hud-enter-d4 { animation-delay: 320ms; }
+
+.hud-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 28%;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-primary) 18%, transparent), transparent);
+  animation: hud-sweep 5.5s ease-in-out infinite;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .hud-floor,
+  .hud-scanlines {
+    animation: none !important;
   }
 }
