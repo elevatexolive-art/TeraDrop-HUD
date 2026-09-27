@@ -1,0 +1,12 @@
+# Railway was starting a Nuxt/Nitro command (`node /app/.output/server/index.mjs`).
+# This repo's production bot is Python under bot/.
+providers = ["python"]
+
+[phases.setup]
+nixPkgs = ["python312", "ffmpeg"]
+
+[phases.install]
+cmds = ["python -m pip install -r bot/requirements.txt"]
+
+[start]
+cmd = "sh -c 'cd bot && python -m app'"

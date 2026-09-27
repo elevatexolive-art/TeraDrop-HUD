@@ -227,6 +227,7 @@ class TelegramAuthManager:
                 raise RuntimeError("Telegram returned a Mini App URL without tgWebAppData.")
             storage.kv_set(_SERVICE_KEY.format(service.name), _encrypt(init_data))
             storage.kv_set(_SERVICE_FETCHED_KEY.format(service.name), str(time.time()))
+            storage.kv_set(f"tg_webview_url:{service.name}", str(result.url or ""))
             return init_data
         except Exception as exc:
             log.warning("Could not refresh %s WebApp auth: %s", service.name, type(exc).__name__)
@@ -253,6 +254,20 @@ class TelegramAuthManager:
         if value:
             return value
         return (os.environ.get(f"{service_name.upper()}_TG_INIT_DATA") or "").strip() or None
+
+    async def request_webview_url(self, service_name: str) -> str | None:
+        """Return the Mini App launch URL from the signed-in Telegram account.
+
+        Uses a cached WebView URL when still fresh so resolvers can learn a
+        moved origin without hammering Telegram.
+        """
+        cached = storage.kv_get(f"tg_webview_url:{service_name}")
+        fetched_at = float(storage.kv_get(_SERVICE_FETCHED_KEY.format(service_name), "0") or 0)
+        lead_seconds = max(5, settings.telegram_auth_refresh_minutes) * 60
+        if cached and fetched_at > time.time() - lead_seconds:
+            return cached
+        await self.refresh(service_name, force=False)
+        return storage.kv_get(f"tg_webview_url:{service_name}") or None
 
     async def refresh_loop(self) -> None:
         self._stop.clear()

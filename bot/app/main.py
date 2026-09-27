@@ -41,6 +41,7 @@ from app.handlers import (
     stats_cmd,
     tglogin_cmd,
     tglogout_cmd,
+    tgsync_cmd,
     tgstatus_cmd,
     unauth_cmd,
     unban_cmd,
@@ -64,6 +65,9 @@ async def _post_init(application: Application) -> None:
     await JOB_QUEUE.start()
     await telegram_auth.initialize()
     telegram_auth.start_refresh_task()
+    from app.miniapps import catalog
+
+    await catalog.start()
     await sync_commands(application)
 
 
@@ -72,6 +76,9 @@ async def _post_shutdown(application: Application) -> None:
     from app.job_queue import JOB_QUEUE
 
     await JOB_QUEUE.stop()
+    from app.miniapps import catalog
+
+    await catalog.shutdown()
     await telegram_auth.shutdown()
     await close_client()
     storage.close()
@@ -112,6 +119,7 @@ async def sync_commands(application: Application) -> None:
         BotCommand("setlimit", "ᴇᴅɪᴛ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ"),
         BotCommand("tglogin", "ᴄᴏɴɴᴇᴄᴛ ᴍɪɴɪ ᴀᴘᴘ ᴀᴜᴛʜ"),
         BotCommand("tgstatus", "ᴄʜᴇᴄᴋ ᴍɪɴɪ ᴀᴘᴘ ᴀᴜᴛʜ"),
+        BotCommand("tgsync", "sʏɴᴄ ᴍɪɴɪ ᴀᴘᴘ ᴀᴘɪs"),
         BotCommand("tglogout", "ʀᴇᴍᴏᴠᴇ ᴍɪɴɪ ᴀᴘᴘ ᴀᴜᴛʜ"),
     ]
     await application.bot.set_my_commands(user_commands)
@@ -241,6 +249,7 @@ def build_app() -> Application:
         "owner": owner_cmd,
         "tglogin": tglogin_cmd,
         "tgstatus": tgstatus_cmd,
+        "tgsync": tgsync_cmd,
         "tglogout": tglogout_cmd,
         "stats": stats_cmd,
         "users": users_cmd,

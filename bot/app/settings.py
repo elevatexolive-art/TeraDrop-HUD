@@ -86,11 +86,31 @@ class Settings(BaseSettings):
         default="https://flezen-downloader.pages.dev/",
         alias="FLEZEN_WEBAPP_URL",
     )
+    flezen_api_download: str = Field(
+        default="https://api2.diskwala.net/api/flezen/downloadw",
+        alias="FLEZEN_API_DOWNLOAD",
+    )
+    flezen_api_status: str = Field(
+        default="https://api2.diskwala.net/api/flezen/statusw",
+        alias="FLEZEN_API_STATUS",
+    )
+    flezen_bot_id: str = Field(default="flezen", alias="FLEZEN_BOT_ID")
+    flezen_aes_key: str = Field(default="", alias="FLEZEN_AES_KEY")
     diskwala_tg_bot: str = Field(default="", alias="DISKWALA_TG_BOT")
     diskwala_webapp_url: str = Field(
         default="https://miniapp.diskwala.net/",
         alias="DISKWALA_WEBAPP_URL",
     )
+    diskwala_api_download: str = Field(
+        default="https://api2.diskwala.net/api/diskwala/download1",
+        alias="DISKWALA_API_DOWNLOAD",
+    )
+    diskwala_api_status: str = Field(
+        default="https://api2.diskwala.net/api/diskwala/status1",
+        alias="DISKWALA_API_STATUS",
+    )
+    diskwala_bot_id: str = Field(default="diskwala", alias="DISKWALA_BOT_ID")
+    diskwala_aes_key: str = Field(default="", alias="DISKWALA_AES_KEY")
     vidbunker_tg_bot: str = Field(default="vidbunkerbot", alias="VIDBUNKER_TG_BOT")
     vidbunker_webapp_url: str = Field(
         default="https://vidbunker-ma.pages.dev/",
@@ -100,6 +120,10 @@ class Settings(BaseSettings):
         default="https://vidbunker-backend.dailyweb577.workers.dev/api/download",
         alias="VIDBUNKER_API_URL",
     )
+    vidbunker_bot_id: str = Field(default="vidbunker", alias="VIDBUNKER_BOT_ID")
+    miniapp_auto_sync: bool = Field(default=True, alias="MINIAPP_AUTO_SYNC")
+    miniapp_sync_interval_minutes: int = Field(default=15, alias="MINIAPP_SYNC_INTERVAL_MINUTES")
+    miniapp_last_sync: str = Field(default="", alias="MINIAPP_LAST_SYNC")
     
     download_dir: Path = Field(default=Path("data/tmp"), alias="DOWNLOAD_DIR")
     data_dir: Path = Field(default=Path("data"), alias="DATA_DIR")

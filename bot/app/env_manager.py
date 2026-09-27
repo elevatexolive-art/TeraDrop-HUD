@@ -30,6 +30,8 @@ SENSITIVE_KEYS = {
     "UPI_ID",
     "DISKWALA_TG_INIT_DATA",
     "FLEZEN_TG_INIT_DATA",
+    "FLEZEN_AES_KEY",
+    "DISKWALA_AES_KEY",
 }
 
 RESTART_KEYS = {
@@ -78,13 +80,26 @@ CATALOG: list[dict[str, str]] = [
     {"key": "UPFILES_SOLVER_URL", "category": "resolvers", "type": "string", "label": "UpFiles solver", "description": "Solver used specifically for UpFiles."},
     {"key": "UPFILES_PLAYWRIGHT_TIMEOUT", "category": "resolvers", "type": "number", "label": "UpFiles Playwright timeout", "description": "Seconds for the UpFiles headless solve."},
     {"key": "UPFILES_TURNSTILE_SITEKEY", "category": "resolvers", "type": "string", "label": "UpFiles Turnstile key", "description": "Turnstile site key for UpFiles."},
-    {"key": "FLEZEN_TG_BOT", "category": "miniapps", "type": "string", "label": "Flezen bot", "description": "Username of the Flezen Mini App bot."},
-    {"key": "FLEZEN_WEBAPP_URL", "category": "miniapps", "type": "string", "label": "Flezen WebApp URL", "description": "Flezen Mini App URL."},
+    {"key": "FLEZEN_TG_BOT", "category": "miniapps", "type": "string", "label": "Flezen bot", "description": "Username of the Flezen Mini App bot. Auto-filled from the live bundle if empty."},
+    {"key": "FLEZEN_WEBAPP_URL", "category": "miniapps", "type": "string", "label": "Flezen WebApp URL", "description": "Flezen Mini App URL. Auto-updated from the Telegram WebView origin."},
+    {"key": "FLEZEN_API_DOWNLOAD", "category": "miniapps", "type": "string", "label": "Flezen queue URL", "description": "Live POST endpoint scraped from the Flezen Mini App JS."},
+    {"key": "FLEZEN_API_STATUS", "category": "miniapps", "type": "string", "label": "Flezen status URL", "description": "Live poll endpoint scraped from the Flezen Mini App JS."},
+    {"key": "FLEZEN_BOT_ID", "category": "miniapps", "type": "string", "label": "Flezen X-Bot-Id", "description": "Header the Mini App sends. Auto-updated."},
+    {"key": "FLEZEN_AES_KEY", "category": "miniapps", "type": "secret", "label": "Flezen AES key", "description": "AES-256-GCM key extracted from the Mini App bundle."},
     {"key": "DISKWALA_TG_BOT", "category": "miniapps", "type": "string", "label": "DiskWala bot", "description": "Username of the DiskWala Mini App bot."},
-    {"key": "DISKWALA_WEBAPP_URL", "category": "miniapps", "type": "string", "label": "DiskWala WebApp URL", "description": "DiskWala Mini App URL."},
+    {"key": "DISKWALA_WEBAPP_URL", "category": "miniapps", "type": "string", "label": "DiskWala WebApp URL", "description": "DiskWala Mini App URL. Auto-updated from the Telegram WebView origin."},
+    {"key": "DISKWALA_API_DOWNLOAD", "category": "miniapps", "type": "string", "label": "DiskWala queue URL", "description": "Live POST endpoint scraped from the DiskWala Mini App JS."},
+    {"key": "DISKWALA_API_STATUS", "category": "miniapps", "type": "string", "label": "DiskWala status URL", "description": "Live poll endpoint scraped from the DiskWala Mini App JS."},
+    {"key": "DISKWALA_BOT_ID", "category": "miniapps", "type": "string", "label": "DiskWala X-Bot-Id", "description": "Header the Mini App sends. Auto-updated."},
+    {"key": "DISKWALA_AES_KEY", "category": "miniapps", "type": "secret", "label": "DiskWala AES key", "description": "AES-256-GCM key extracted from the Mini App bundle."},
     {"key": "VIDBUNKER_TG_BOT", "category": "miniapps", "type": "string", "label": "VidBunker bot", "description": "Username of the VidBunker Mini App bot."},
     {"key": "VIDBUNKER_WEBAPP_URL", "category": "miniapps", "type": "string", "label": "VidBunker WebApp URL", "description": "VidBunker Mini App URL."},
-    {"key": "VIDBUNKER_API_URL", "category": "miniapps", "type": "string", "label": "VidBunker API", "description": "VidBunker download API endpoint."},
+    {"key": "VIDBUNKER_API_URL", "category": "miniapps", "type": "string", "label": "VidBunker API", "description": "Live download API scraped from the VidBunker Mini App JS."},
+    {"key": "VIDBUNKER_BOT_ID", "category": "miniapps", "type": "string", "label": "VidBunker X-Bot-Id", "description": "Header the Mini App sends. Auto-updated."},
+    {"key": "MINIAPP_AUTO_SYNC", "category": "miniapps", "type": "boolean", "label": "Auto-sync Mini Apps", "description": "Fetch live JS from each Mini App and update endpoints without a reboot."},
+    {"key": "MINIAPP_SYNC_INTERVAL_MINUTES", "category": "miniapps", "type": "number", "label": "Mini App sync interval", "description": "How often the bot re-reads Mini App JS bundles."},
+    {"key": "MINIAPP_LAST_SYNC", "category": "miniapps", "type": "string", "label": "Last Mini App sync", "description": "UTC timestamp of the last successful catalog sync. Written automatically."},
+    {"key": "TELEGRAM_AUTH_REFRESH_MINUTES", "category": "miniapps", "type": "number", "label": "Mini App refresh (min)", "description": "How often Telethon refreshes Mini App initData."},
     {"key": "PAYTM_MID", "category": "payments", "type": "secret", "label": "Paytm MID", "description": "Paytm merchant ID used by the payment proxy."},
     {"key": "UPI_ID", "category": "payments", "type": "secret", "label": "UPI ID", "description": "UPI address printed on premium QR codes."},
     {"key": "UPI_PAYEE_NAME", "category": "payments", "type": "string", "label": "UPI payee name", "description": "Name shown in the UPI collect request."},
@@ -99,7 +114,6 @@ CATALOG: list[dict[str, str]] = [
     {"key": "DOWNLOAD_DIR", "category": "delivery", "type": "string", "label": "Download directory", "description": "Scratch directory. Per-user subfolders are created automatically."},
     {"key": "DATA_DIR", "category": "delivery", "type": "string", "label": "Data directory", "description": "Durable data directory."},
     {"key": "HEALTH_PORT", "category": "delivery", "type": "number", "label": "Health/admin port", "description": "Internal port for /admin, /media and health checks."},
-    {"key": "TELEGRAM_AUTH_REFRESH_MINUTES", "category": "miniapps", "type": "number", "label": "Mini App refresh (min)", "description": "How often Telethon refreshes Mini App initData."},
 ]
 
 _ALIAS_TO_FIELD = {
@@ -332,6 +346,26 @@ def set_variable(key: str, value: str, reveal: bool = False) -> dict[str, Any]:
     listing = list_variables(reveal=reveal)
     listing["result"] = {"key": key, **result}
     return listing
+
+
+def set_many(updates: dict[str, str]) -> dict[str, Any]:
+    """Write multiple keys, skipping unchanged values. Used by Mini App auto-sync."""
+    cleaned: dict[str, str] = {}
+    for key, value in (updates or {}).items():
+        key = str(key).strip()
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            continue
+        cleaned[key] = "" if value is None else str(value)
+    if not cleaned:
+        return {"changed": []}
+    current = parse_env_file()
+    changed = {key: value for key, value in cleaned.items() if current.get(key) != value}
+    if not changed:
+        return {"changed": []}
+    upsert_env_file(changed)
+    for key, value in changed.items():
+        apply_live(key, value)
+    return {"changed": sorted(changed)}
 
 
 def delete_variable(key: str) -> dict[str, Any]:

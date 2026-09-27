@@ -317,8 +317,34 @@ async function addForce(ev){ev.preventDefault();try{await api("/admin/api/force-
 async function removeForce(chat_id){try{await api("/admin/api/force-sub",{method:"POST",body:JSON.stringify({chat_id,remove:true})});data=await api("/admin/api/summary");render()}catch(e){notice(e.message,true)}}
 function apps(){
   const m=data.mini_apps||{};
-  return `<div class="kicker">Mini Apps</div><h1>Resolver connections</h1>`+
-    Object.entries(m).map(([n,x])=>`<div class="row"><div><strong>${esc(n)}</strong><div class="muted">${esc(x.url||"not configured")}</div></div><span class="badge ${x.status==="ready"?"live":"restart"}">${esc(x.status)}</span></div>`).join("");
+  const meta=m._meta||{};
+  const rows=Object.entries(m).filter(([n])=>n!=="_meta");
+  return `<div class="kicker">Mini Apps</div><h1>Resolver connections</h1>
+  <p class="muted">The bot reads each Mini App's live JS on a timer and whenever a queue path 404s. New endpoints and AES keys are written into .env so they show up here automatically.</p>
+  <div class="card"><div class="row" style="border:0;padding:0"><div><strong>Auto-sync</strong><div class="muted">${esc(meta.last_sync_ago||"never")} · every ${esc(meta.interval_minutes||15)} min</div></div>
+  <button class="btn" onclick="syncMiniApps()">Sync now</button></div>
+  ${meta.last_error?`<p class="muted">last error: ${esc(meta.last_error)}</p>`:""}</div>
+  `+rows.map(([n,x])=>`<article class="card" style="margin-top:12px">
+    <div class="row" style="border:0;padding:0">
+      <div><strong>${esc(n)}</strong>
+        <div class="muted">${esc(x.url||"not configured")}</div>
+        <div class="muted mono" style="margin-top:6px">${esc(x.download_url||"—")}</div>
+        ${x.status_url?`<div class="muted mono">${esc(x.status_url)}</div>`:""}
+        <div class="muted">bot ${esc(x.bot||"—")} · X-Bot-Id ${esc(x.bot_id||n)} · ${esc(x.synced_ago||"never")} · ${esc(x.source||"")}</div>
+      </div>
+      <span class="badge ${x.status==="ready"?"live":"restart"}">${esc(x.status)}</span>
+    </div>
+  </article>`).join("");
+}
+async function syncMiniApps(){
+  try{
+    notice("syncing Mini App JS…");
+    await api("/admin/api/miniapps/sync",{method:"POST",body:JSON.stringify({})});
+    data=await api("/admin/api/summary");
+    envData=await api("/admin/api/env");
+    notice("Mini App catalog updated");
+    render();
+  }catch(e){notice(e.message,true)}
 }
 function logs(){return `<div class="kicker">Logs</div><h1>Recent events</h1><div class="card log">${esc((data.logs||[]).join("\n"))||"no logs yet"}</div>`}
 boot().catch(()=>{});

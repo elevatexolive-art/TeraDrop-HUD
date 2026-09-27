@@ -1,4 +1,4 @@
-"""Flezen resolver — POST /download to queue, then poll /status."""
+"""Flezen resolver — live Mini App catalog drives queue/status URLs."""
 from __future__ import annotations
 
 import asyncio
@@ -6,33 +6,29 @@ import time
 
 import httpx
 
+from app.miniapps import catalog, poll_link, queue_link, unwrap_file
 from app.resolver import FileInfo, ResolveResult, _fmt, _num
 from app.telegram_auth import telegram_auth
-
-_API = "https://api2.diskwala.net/api/flezen"
-_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 
 _POLL_INTERVAL = 2.5
 _POLL_TIMEOUT = 90.0
 
 
-def _headers(init_data: str) -> dict:
-    return {
-        "user-agent": _UA,
-        "origin": "https://flezen-downloader.pages.dev",
-        "referer": "https://flezen-downloader.pages.dev/",
-        "authorization": f"Bearer {init_data}",
-        "x-bot-id": "flezen",
-    }
-
-
 def _to_result(file: dict, url: str, t0: float) -> ResolveResult:
-    name = str(file.get("name") or file.get("filename") or "video.mp4")
-    size = _num(file.get("size"))
-    direct = file.get("url") or file.get("downloadUrl") or file.get("download_url")
-    stream = (file.get("streamUrl") or file.get("stream_url")
-              or file.get("url") or direct)
+    name = str(file.get("name") or file.get("filename") or file.get("fileName") or "video.mp4")
+    size = _num(file.get("size") or file.get("fileSize"))
+    direct = (
+        file.get("url")
+        or file.get("downloadUrl")
+        or file.get("download_url")
+        or file.get("downloadLink")
+    )
+    stream = (
+        file.get("streamUrl")
+        or file.get("stream_url")
+        or file.get("url")
+        or direct
+    )
     if not (direct or stream):
         return ResolveResult(ok=False, message="Flezen returned no file URL.",
                              host="flezen", source_url=url)
@@ -40,7 +36,7 @@ def _to_result(file: dict, url: str, t0: float) -> ResolveResult:
         file_name=name,
         size=size,
         formatted_size=_fmt(size) if size else "unknown",
-        fs_id="",
+        fs_id=str(file.get("fsId") or file.get("fs_id") or ""),
         direct_link=str(direct) if direct else None,
         stream_url=str(stream or direct) if (stream or direct) else None,
         stream_hd_url=str(stream or direct) if (stream or direct) else None,
@@ -63,28 +59,26 @@ async def resolve(url: str) -> ResolveResult:
                      "the owner account and configure FLEZEN_TG_BOT."),
             host="flezen", source_url=url,
         )
-    headers = _headers(init_data)
+    spec = catalog.spec("flezen")
+    headers = spec.headers(init_data)
     auth_retried = False
+    synced = False
     async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=15.0),
                                  follow_redirects=True) as client:
-        # 1) Queue the job
         try:
-            res = await client.post(
-                f"{_API}/download",
-                json={"link": url},
-                headers={**headers, "content-type": "application/json"},
-            )
+            res = await queue_link(client, spec, url, headers)
+            if res.status_code == 404 and not synced:
+                spec = await catalog.refresh("flezen", force=True)
+                headers = spec.headers(init_data)
+                synced = True
+                res = await queue_link(client, spec, url, headers)
             if res.status_code == 401:
                 if not auth_retried:
                     fresh = await telegram_auth.refresh("flezen", force=True)
                     if fresh:
-                        headers = _headers(fresh)
+                        headers = spec.headers(fresh)
                         auth_retried = True
-                        res = await client.post(
-                            f"{_API}/download",
-                            json={"link": url},
-                            headers={**headers, "content-type": "application/json"},
-                        )
+                        res = await queue_link(client, spec, url, headers)
                     else:
                         return ResolveResult(ok=False, message="Flezen Telegram auth expired. Use /tgstatus.",
                                              host="flezen", source_url=url)
@@ -107,18 +101,21 @@ async def resolve(url: str) -> ResolveResult:
                 host="flezen", source_url=url,
             )
 
-        # 2) Poll /status
         deadline = time.monotonic() + _POLL_TIMEOUT
         while time.monotonic() < deadline:
             await asyncio.sleep(_POLL_INTERVAL)
             try:
-                res = await client.get(f"{_API}/status",
-                                       params={"link": url}, headers=headers)
+                res = await poll_link(client, spec, url, headers)
+                if res.status_code == 404 and not synced:
+                    spec = await catalog.refresh("flezen", force=True)
+                    headers = spec.headers(init_data)
+                    synced = True
+                    continue
                 if res.status_code == 401:
                     if not auth_retried:
                         fresh = await telegram_auth.refresh("flezen", force=True)
                         if fresh:
-                            headers = _headers(fresh)
+                            headers = spec.headers(fresh)
                             auth_retried = True
                             continue
                     return ResolveResult(ok=False, message="Flezen Telegram auth expired. Use /tgstatus.",
@@ -129,7 +126,12 @@ async def resolve(url: str) -> ResolveResult:
                 continue
 
             if data.get("ok") and data.get("status") == "done":
-                return _to_result(data.get("file") or {}, url, t0)
+                try:
+                    file = unwrap_file(data.get("file") or {}, spec.aes_key_hex)
+                except Exception as exc:
+                    return ResolveResult(ok=False, message=f"Flezen decrypt failed: {exc}",
+                                         host="flezen", source_url=url)
+                return _to_result(file, url, t0)
             if data.get("ok") and data.get("status") == "error":
                 return ResolveResult(ok=False, message="Flezen could not fetch the link.",
                                      host="flezen", source_url=url)

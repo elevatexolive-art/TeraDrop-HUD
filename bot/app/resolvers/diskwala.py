@@ -1,74 +1,48 @@
-"""DiskWala resolver — POST /download to queue, then poll /status.
-Handles the AES-256-GCM envelope (`_x`) the mini-app uses."""
+"""DiskWala resolver — live Mini App catalog drives queue/status URLs and AES key."""
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 
 import httpx
 
+from app.miniapps import catalog, poll_link, queue_link, unwrap_file
 from app.resolver import FileInfo, ResolveResult, _fmt, _num
 from app.telegram_auth import telegram_auth
-
-_API = "https://api2.diskwala.net/api/diskwala"
-_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
-
-# Hard-coded AES-256-GCM key from the DiskWala mini-app bundle.
-_AES_KEY_HEX = "e7109544dab612bd5b80b8a427ac474ba5541b9efff7a4ca1c8ef85df2489c23"
 
 _POLL_INTERVAL = 2.5
 _POLL_TIMEOUT = 90.0
 
 
-def _headers(init_data: str) -> dict:
-    return {
-        "user-agent": _UA,
-        "origin": "https://miniapp.diskwala.net",
-        "referer": "https://miniapp.diskwala.net/",
-        "authorization": f"Bearer {init_data}",
-        "x-bot-id": "diskwala",
-    }
-
-
-def _decrypt(payload: dict) -> dict:
-    """Decrypt `{_x,s,h,p}` using AES-256-GCM (WebCrypto-compatible layout:
-    IV = `s`, ciphertext = `p`, auth tag = `h`)."""
-    try:
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    except ImportError as exc:
-        raise RuntimeError(
-            "cryptography is required for DiskWala decryption. "
-            "Add `cryptography==43.0.3` to requirements.txt."
-        ) from exc
-    key = bytes.fromhex(_AES_KEY_HEX)
-    iv = bytes.fromhex(payload["s"])
-    tag = bytes.fromhex(payload["h"])
-    ct = bytes.fromhex(payload["p"])
-    aes = AESGCM(key)
-    plaintext = aes.decrypt(iv, ct + tag, None)
-    return json.loads(plaintext.decode("utf-8"))
-
-
 def _to_result(file: dict, url: str, t0: float) -> ResolveResult:
-    name = str(file.get("name") or file.get("filename") or "video.mp4")
-    size = _num(file.get("size"))
-    direct = file.get("downloadUrl") or file.get("download_url") or file.get("url")
-    stream = (file.get("streamUrl") or file.get("stream_url")
-              or file.get("url") or direct)
+    name = str(file.get("name") or file.get("filename") or file.get("fileName") or "video.mp4")
+    size = _num(file.get("size") or file.get("fileSize"))
+    direct = (
+        file.get("downloadUrl")
+        or file.get("download_url")
+        or file.get("downloadLink")
+        or file.get("url")
+    )
+    stream = (
+        file.get("streamUrl")
+        or file.get("stream_url")
+        or file.get("url")
+        or direct
+    )
     if not (direct or stream):
         return ResolveResult(ok=False, message="DiskWala returned no file URL.",
                              host="diskwala", source_url=url)
     info = FileInfo(
         file_name=name,
         size=size,
-        formatted_size=_fmt(size) if size else "unknown",
-        fs_id="",
+        formatted_size=_fmt(size) if size else str(file.get("fileSizeMB") or "") or "unknown",
+        fs_id=str(file.get("fsId") or file.get("fs_id") or ""),
         direct_link=str(direct) if direct else None,
         stream_url=str(stream or direct) if (stream or direct) else None,
         stream_hd_url=str(stream or direct) if (stream or direct) else None,
         thumb=file.get("thumb") or file.get("thumbnail") or None,
+        path=file.get("path") or file.get("dirPath") or None,
+        is_dir=bool(file.get("isDir") or file.get("type") == "folder"),
     )
     return ResolveResult(
         ok=True, title=info.file_name, host="diskwala", source_url=url,
@@ -87,27 +61,26 @@ async def resolve(url: str) -> ResolveResult:
                      "the owner account and configure DISKWALA_TG_BOT."),
             host="diskwala", source_url=url,
         )
-    headers = _headers(init_data)
+    spec = catalog.spec("diskwala")
+    headers = spec.headers(init_data)
     auth_retried = False
+    synced = False
     async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=15.0),
                                  follow_redirects=True) as client:
         try:
-            res = await client.post(
-                f"{_API}/download",
-                json={"link": url},
-                headers={**headers, "content-type": "application/json"},
-            )
+            res = await queue_link(client, spec, url, headers)
+            if res.status_code == 404 and not synced:
+                spec = await catalog.refresh("diskwala", force=True)
+                headers = spec.headers(init_data)
+                synced = True
+                res = await queue_link(client, spec, url, headers)
             if res.status_code == 401:
                 if not auth_retried:
                     fresh = await telegram_auth.refresh("diskwala", force=True)
                     if fresh:
-                        headers = _headers(fresh)
+                        headers = spec.headers(fresh)
                         auth_retried = True
-                        res = await client.post(
-                            f"{_API}/download",
-                            json={"link": url},
-                            headers={**headers, "content-type": "application/json"},
-                        )
+                        res = await queue_link(client, spec, url, headers)
                     else:
                         return ResolveResult(ok=False, message="DiskWala Telegram auth expired. Use /tgstatus.",
                                              host="diskwala", source_url=url)
@@ -134,13 +107,17 @@ async def resolve(url: str) -> ResolveResult:
         while time.monotonic() < deadline:
             await asyncio.sleep(_POLL_INTERVAL)
             try:
-                res = await client.get(f"{_API}/status",
-                                       params={"link": url}, headers=headers)
+                res = await poll_link(client, spec, url, headers)
+                if res.status_code == 404 and not synced:
+                    spec = await catalog.refresh("diskwala", force=True)
+                    headers = spec.headers(init_data)
+                    synced = True
+                    continue
                 if res.status_code == 401:
                     if not auth_retried:
                         fresh = await telegram_auth.refresh("diskwala", force=True)
                         if fresh:
-                            headers = _headers(fresh)
+                            headers = spec.headers(fresh)
                             auth_retried = True
                             continue
                     return ResolveResult(ok=False, message="DiskWala Telegram auth expired. Use /tgstatus.",
@@ -151,16 +128,14 @@ async def resolve(url: str) -> ResolveResult:
                 continue
 
             if data.get("ok") and data.get("status") == "done":
-                file = data.get("file") or {}
-                if file.get("_x"):
-                    try:
-                        file = _decrypt(file)
-                    except Exception as exc:
-                        return ResolveResult(
-                            ok=False,
-                            message=f"DiskWala decrypt failed: {exc}",
-                            host="diskwala", source_url=url,
-                        )
+                try:
+                    file = unwrap_file(data.get("file") or {}, spec.aes_key_hex)
+                except Exception as exc:
+                    return ResolveResult(
+                        ok=False,
+                        message=f"DiskWala decrypt failed: {exc}",
+                        host="diskwala", source_url=url,
+                    )
                 return _to_result(file, url, t0)
             if data.get("ok") and data.get("status") == "error":
                 return ResolveResult(ok=False, message="DiskWala could not fetch the link.",

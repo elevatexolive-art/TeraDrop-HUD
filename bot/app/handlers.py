@@ -809,6 +809,28 @@ async def tgstatus_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
+async def tgsync_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _require_owner(update):
+        await update.message.reply_text(texts.NOT_OWNER, parse_mode=ParseMode.HTML)
+        return
+    from app.miniapps import catalog
+
+    await update.message.reply_text("Syncing Mini App JS now…")
+    snap = await catalog.refresh_all(force=True)
+    lines = []
+    for name, app in (snap.get("apps") or {}).items():
+        lines.append(
+            f"{name}: {app.get('download_url') or '—'} · {app.get('synced_ago') or 'never'}"
+        )
+    err = snap.get("last_error") or ""
+    await update.message.reply_text(
+        "<b>Mini App catalog</b>\n"
+        + _escape("\n".join(lines) or "no apps")
+        + (f"\nerror: {_escape(err)}" if err else ""),
+        parse_mode=ParseMode.HTML,
+    )
+
+
 async def tglogout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _require_owner(update):
         await update.message.reply_text(texts.NOT_OWNER, parse_mode=ParseMode.HTML)

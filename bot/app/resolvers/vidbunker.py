@@ -1,29 +1,40 @@
-"""VidBunker resolver — single-request direct video link."""
+"""VidBunker resolver — live Mini App catalog drives the download API."""
 from __future__ import annotations
 
 import time
-from urllib.parse import quote
 
 import httpx
 
+from app.miniapps import catalog
 from app.resolver import FileInfo, ResolveResult, _fmt, _num
-from app.settings import settings
 from app.telegram_auth import telegram_auth
 
-_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-)
 
-
-def _headers(init_data: str) -> dict:
-    return {
-        "user-agent": _UA,
-        "origin": "https://vidbunker-ma.pages.dev",
-        "referer": "https://vidbunker-ma.pages.dev/",
-        "authorization": f"Bearer {init_data}",
-        "x-bot-id": "vidbunker",
-    }
+async def _request(client: httpx.AsyncClient, spec, url: str, headers: dict) -> httpx.Response:
+    payload = {"url": url}
+    hdrs = {**headers, "content-type": "application/json"}
+    targets = [spec.download_url, *list(spec.fallbacks)]
+    last: httpx.Response | None = None
+    seen: set[str] = set()
+    for target in targets:
+        if not target or target in seen:
+            continue
+        seen.add(target)
+        method = (spec.download_method or "POST").upper()
+        attempts = [method, "GET" if method != "GET" else "POST"]
+        for verb in attempts:
+            if verb == "GET":
+                res = await client.get(target, params={"url": url, "link": url}, headers=headers)
+            else:
+                res = await client.post(target, json=payload, headers=hdrs)
+            last = res
+            if res.status_code not in {404, 405}:
+                spec.download_url = target
+                spec.download_method = verb
+                return res
+    if last is None:
+        raise RuntimeError("VidBunker has no download URL configured")
+    return last
 
 
 async def resolve(url: str) -> ResolveResult:
@@ -42,29 +53,28 @@ async def resolve(url: str) -> ResolveResult:
             source_url=url,
         )
 
-    headers = _headers(init_data)
+    spec = catalog.spec("vidbunker")
+    headers = spec.headers(init_data)
     auth_retried = False
+    synced = False
 
     async with httpx.AsyncClient(
         timeout=httpx.Timeout(45.0, connect=15.0), follow_redirects=True
     ) as client:
-        # Request the direct download URL
-        params = {"url": url}
         try:
-            res = await client.get(
-                settings.vidbunker_api_url, params=params, headers=headers
-            )
+            res = await _request(client, spec, url, headers)
+            if res.status_code == 404 and not synced:
+                spec = await catalog.refresh("vidbunker", force=True)
+                headers = spec.headers(init_data)
+                synced = True
+                res = await _request(client, spec, url, headers)
             if res.status_code == 401:
                 if not auth_retried:
                     fresh = await telegram_auth.refresh("vidbunker", force=True)
                     if fresh:
-                        headers = _headers(fresh)
+                        headers = spec.headers(fresh)
                         auth_retried = True
-                        res = await client.get(
-                            settings.vidbunker_api_url,
-                            params=params,
-                            headers=headers,
-                        )
+                        res = await _request(client, spec, url, headers)
                     else:
                         return ResolveResult(
                             ok=False,
@@ -80,8 +90,7 @@ async def resolve(url: str) -> ResolveResult:
                         source_url=url,
                     )
             res.raise_for_status()
-            
-            # ---- NEW: content-type aware parsing ----
+
             content_type = (res.headers.get("content-type") or "").lower()
             if "application/json" in content_type:
                 try:
@@ -89,14 +98,11 @@ async def resolve(url: str) -> ResolveResult:
                 except Exception:
                     data = {"url": str(res.url)}
             elif res.status_code in (301, 302, 303, 307, 308):
-                # Redirect to the CDN
                 direct = res.headers.get("location") or str(res.url)
                 data = {"url": direct}
             else:
-                # Binary video/octet-stream — the API URL itself is the direct link.
-                # The webproxy will stream it server-side with auth headers.
                 data = {"url": str(res.url)}
-                
+
         except httpx.HTTPStatusError as exc:
             return ResolveResult(
                 ok=False,
@@ -112,7 +118,6 @@ async def resolve(url: str) -> ResolveResult:
                 source_url=url,
             )
 
-    # The API may return a JSON object, a redirect, or binary video.
     if isinstance(data, str):
         direct = data
         file_name = "video.mp4"
@@ -120,6 +125,7 @@ async def resolve(url: str) -> ResolveResult:
     else:
         direct = (
             data.get("url")
+            or data.get("link")
             or data.get("download_url")
             or data.get("downloadUrl")
             or data.get("stream_url")
@@ -129,7 +135,7 @@ async def resolve(url: str) -> ResolveResult:
             data.get("name") or data.get("filename") or "video.mp4"
         )
         size = _num(data.get("size") or data.get("sizebytes") or 0)
-        
+
     if not direct:
         return ResolveResult(
             ok=False,

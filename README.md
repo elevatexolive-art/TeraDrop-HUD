@@ -13,7 +13,9 @@ and live telemetry.
   on phones, respects reduced motion.
 - **Live environment** — view, edit, and add `.env` keys including `BOT_TOKEN`.
 - **Python bot** — isolated per-user download lanes, non-blocking handlers,
-  bounded priority queue. See `bot/`.
+  bounded priority queue. Mini App APIs (Flezen / DiskWala / VidBunker) are
+  scraped from the live JS bundles on a timer and on 404, then written into
+  `.env` so the admin panel always shows the current endpoints. See `bot/`.
 
 Preview password: `teradrop`.
 

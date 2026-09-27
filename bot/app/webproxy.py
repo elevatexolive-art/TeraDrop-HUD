@@ -245,18 +245,36 @@ def _admin_body(handler: BaseHTTPRequestHandler) -> dict:
 
 
 def _mini_app_snapshot() -> dict[str, dict[str, str]]:
+    from app.miniapps import catalog
+
+    snap = catalog.snapshot()
+    apps = snap.get("apps") or {}
     configs = (
         ("flezen", settings.flezen_tg_bot, settings.flezen_webapp_url),
         ("diskwala", settings.diskwala_tg_bot, settings.diskwala_webapp_url),
         ("vidbunker", settings.vidbunker_tg_bot, settings.vidbunker_webapp_url),
     )
-    out: dict[str, dict[str, str]] = {}
+    out: dict[str, dict[str, object]] = {}
     for name, bot_name, url in configs:
         fetched = storage.kv_get(f"tg_init_data_fetched_at:{name}")
+        live = apps.get(name) or {}
         out[name] = {
-            "url": url if bot_name else "",
+            "url": live.get("webapp_url") or (url if bot_name else ""),
+            "bot": bot_name or live.get("tg_bot") or "",
             "status": "ready" if bot_name and fetched else ("configured" if bot_name else "not configured"),
+            "download_url": live.get("download_url") or "",
+            "status_url": live.get("status_url") or "",
+            "bot_id": live.get("bot_id") or name,
+            "bundle": live.get("bundle") or "",
+            "synced_ago": live.get("synced_ago") or "never",
+            "source": live.get("source") or "default",
         }
+    out["_meta"] = {
+        "last_sync_ago": snap.get("last_sync_ago") or "never",
+        "auto": snap.get("auto"),
+        "interval_minutes": snap.get("interval_minutes"),
+        "last_error": snap.get("last_error") or "",
+    }
     return out
 
 
@@ -382,6 +400,11 @@ def serve_admin_api(handler: BaseHTTPRequestHandler, parsed, method: str = "GET"
 
             _admin_json(handler, 200, JOB_QUEUE.snapshot())
             return
+        if method == "GET" and parsed.path == "/admin/api/miniapps":
+            from app.miniapps import catalog
+
+            _admin_json(handler, 200, catalog.snapshot())
+            return
         if method != "POST":
             _admin_json(handler, 404, {"error": "not found"})
             return
@@ -416,6 +439,20 @@ def serve_admin_api(handler: BaseHTTPRequestHandler, parsed, method: str = "GET"
         if parsed.path == "/admin/api/restart":
             env_manager.request_restart()
             _admin_json(handler, 200, {"ok": True, "restarting": True})
+            return
+        if parsed.path == "/admin/api/miniapps/sync":
+            import asyncio
+
+            from app import runtime
+            from app.miniapps import catalog
+
+            if runtime.loop and runtime.loop.is_running():
+                fut = asyncio.run_coroutine_threadsafe(catalog.refresh_all(force=True), runtime.loop)
+                snap = fut.result(timeout=50)
+            else:
+                snap = catalog.snapshot()
+                snap["error"] = "bot loop is not running"
+            _admin_json(handler, 200, snap)
             return
         if parsed.path == "/admin/api/plan":
             key = str(data.get("key", "")).strip().lower()
