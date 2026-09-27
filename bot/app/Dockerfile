@@ -22,7 +22,7 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Install Playwright and Chromium with system dependencies
-RUN pip install playwright && playwright install chromium --with-deps \
+RUN pip install playwright && playwright install chromium \
     && chmod -R 777 $PLAYWRIGHT_BROWSERS_PATH
 
 COPY app /app/app
