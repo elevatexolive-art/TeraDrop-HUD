@@ -128,6 +128,14 @@ class Settings(BaseSettings):
     download_dir: Path = Field(default=Path("data/tmp"), alias="DOWNLOAD_DIR")
     data_dir: Path = Field(default=Path("data"), alias="DATA_DIR")
     health_port: int = Field(default=8080, alias="HEALTH_PORT")
+
+    @property
+    def listen_port(self) -> int:
+        """HTTP port for health/admin/media. Railway injects PORT and routes 443 to it."""
+        raw = (os.environ.get("PORT") or "").strip()
+        if raw.isdigit():
+            return int(raw)
+        return max(1, int(self.health_port or 8080))
     # Optional explicit override. If unset, we fall back to Railway's own
     # RAILWAY_PUBLIC_DOMAIN (auto-injected once a public domain is generated
     # for this service), so no manual configuration is usually needed.

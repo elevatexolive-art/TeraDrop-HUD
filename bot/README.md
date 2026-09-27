@@ -122,9 +122,10 @@ The **Environment** tab lists every known variable, grouped and searchable.
 
 `MAX_CONCURRENT` resizes the worker pool without dropping in-flight jobs.
 
-The bot itself listens on port `8080` only inside the Docker network. The local
-Bot API listens on port `8081` only inside the Docker network, so the old
-Railway-only `telegram-bot-api.railway.internal` URL is not used.
+The bot itself listens on port `8080` only inside the Docker network (`HEALTH_PORT`).
+On Railway it instead binds to the platform `PORT` (still usually 8080); Railway’s
+public domain on **443** is the only inbound port you need. The local Bot API
+listens on port `8081` only inside the Docker network.
 
 The existing `SOLVER_URL` is a separate resolver dependency and is not part of
 the Telegram Bot API. Keep it pointed at a reachable solver service or replace

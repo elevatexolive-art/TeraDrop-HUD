@@ -192,9 +192,10 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 
 def start_health() -> None:
-    server = ThreadingHTTPServer(("0.0.0.0", settings.health_port), HealthHandler)
+    port = settings.listen_port
+    server = ThreadingHTTPServer(("0.0.0.0", port), HealthHandler)
     Thread(target=server.serve_forever, daemon=True).start()
-    log.info("health on %s", settings.health_port)
+    log.info("health/admin/media on 0.0.0.0:%s", port)
 
 
 def validate_bot_api_url() -> None:

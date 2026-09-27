@@ -1,1 +1,1 @@
-web: sh -c 'cd bot && python -m app'
+web: sh bot/start.sh

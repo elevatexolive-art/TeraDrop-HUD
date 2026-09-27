@@ -1,12 +1,14 @@
-# Railway was starting a Nuxt/Nitro command (`node /app/.output/server/index.mjs`).
-# This repo's production bot is Python under bot/.
+# Fallback if a service is still on Nixpacks. railway.json prefers Docker.
 providers = ["python"]
 
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.12"
+
 [phases.setup]
-nixPkgs = ["python312", "ffmpeg"]
+nixPkgs = ["python312", "python312Packages.pip", "ffmpeg"]
 
 [phases.install]
-cmds = ["python -m pip install -r bot/requirements.txt"]
+cmds = ["python3 -m pip install --upgrade pip", "python3 -m pip install -r bot/requirements.txt"]
 
 [start]
-cmd = "sh -c 'cd bot && python -m app'"
+cmd = "sh bot/start.sh"

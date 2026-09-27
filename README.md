@@ -37,3 +37,29 @@ docker compose up -d --build
 ```
 
 Open `/admin` on the public host with `ADMIN_PANEL_PASSWORD`.
+
+## Railway (Python bot)
+
+This repo’s Railway config (`railway.json`) builds `Dockerfile.railway` — a
+Python 3.12 image — so the container is not a Node HUD and `python` exists.
+
+Railway exposes **one public HTTPS port (443)** on the generated domain and
+forwards it to the container’s `PORT` (usually 8080):
+
+| Where | Port | What |
+| --- | --- | --- |
+| Railway public URL | **443** | HTTPS in front of the bot |
+| Container `PORT` / `HEALTH_PORT` | **8080** | `/` health, `/admin` panel, `/media/` streams, `/go/` links |
+| Telegram | none inbound | Long-poll outbound to `api.telegram.org` |
+| Solver (separate service) | **42271** | Turnstile solver only (`SOLVER_URL`) |
+
+Do **not** generate a public domain on a Node/Nitro service for this bot.
+After deploy, `/admin` is `https://<your-railway-domain>/admin`.
+
+## VPS Docker Compose
+
+| Port | What |
+| --- | --- |
+| **6969** | Public HTTPS via Caddy (admin, player, downloads) |
+| **8080** | Bot HTTP, internal only |
+| **8081** | Local Telegram Bot API, internal only |
