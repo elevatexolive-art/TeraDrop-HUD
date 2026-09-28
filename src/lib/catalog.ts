@@ -130,7 +130,7 @@ export const DEFAULT_ENV: Record<string, string> = {
   TERABOXDL_URL: "https://www.teraboxdl.site",
   SOLVER_URL: "http://solver:42271",
   UPFILES_SOLVER_URL: "http://solver:42271",
-  FLEZEN_TG_BOT: "flezenbot",
+  FLEZEN_TG_BOT: "flezennbot",
   FLEZEN_WEBAPP_URL: "https://flezen-downloader.pages.dev/",
   FLEZEN_API_DOWNLOAD: "https://api2.diskwala.net/api/flezen/downloadw",
   FLEZEN_API_STATUS: "https://api2.diskwala.net/api/flezen/statusw",
