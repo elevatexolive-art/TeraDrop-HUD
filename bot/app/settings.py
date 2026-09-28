@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     max_queue_size: int = Field(default=1000, alias="MAX_QUEUE_SIZE")
     
     # Supported Mini Apps
-    flezen_tg_bot: str = Field(default="", alias="FLEZEN_TG_BOT")
+    flezen_tg_bot: str = Field(default="flezennbot", alias="FLEZEN_TG_BOT")
     flezen_webapp_url: str = Field(
         default="https://flezen-downloader.pages.dev/",
         alias="FLEZEN_WEBAPP_URL",

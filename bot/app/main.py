@@ -4,7 +4,7 @@ import asyncio
 import logging
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Thread
+from threading import Event, Thread
 from urllib.parse import urlsplit
 
 from telegram import BotCommand, BotCommandScopeChat
@@ -199,24 +199,23 @@ def start_health() -> None:
 
 
 def validate_bot_api_url() -> None:
-    """Fail early with a useful message when a private API hostname is unreachable."""
+    """Drop an unreachable local Bot API URL instead of crashing the container."""
     raw = (settings.bot_api_url or "").strip()
     if not raw:
         return
     parsed = urlsplit(raw)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise SystemExit(
-            "BOT_API_URL is invalid. Use an HTTP URL such as "
-            "http://telegram-bot-api:8081 or leave it empty for Telegram's hosted API."
-        )
+        log.warning("BOT_API_URL %r is invalid — using Telegram hosted API", raw)
+        settings.bot_api_url = ""
+        return
     try:
         socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80))
-    except socket.gaierror as exc:
-        raise SystemExit(
-            f"BOT_API_URL host '{parsed.hostname}' cannot be resolved from this deployment. "
-            "Leave BOT_API_URL empty for the hosted Telegram API, or use the reachable "
-            "private/public URL of a separately running local Bot API server."
-        ) from exc
+    except socket.gaierror:
+        log.warning(
+            "BOT_API_URL host %r cannot be resolved — using Telegram hosted API",
+            parsed.hostname,
+        )
+        settings.bot_api_url = ""
 
 
 def build_app() -> Application:
@@ -284,10 +283,12 @@ def build_app() -> Application:
 
 
 def main() -> None:
-    if not settings.bot_token:
-        raise SystemExit("Set BOT_TOKEN as a secure environment variable before starting TeraDrop.")
-    validate_bot_api_url()
     start_health()
+    validate_bot_api_url()
+    if not settings.bot_token:
+        log.error("BOT_TOKEN is empty — admin is up; set BOT_TOKEN and restart")
+        Event().wait()
+        return
     log.info(
         "starting %s; large uploads=%s; effective limit=%s MB",
         settings.bot_name,

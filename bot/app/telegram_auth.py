@@ -39,10 +39,30 @@ class ServiceConfig:
 
 
 def _services() -> tuple[ServiceConfig, ...]:
+    flezen_bot = settings.flezen_tg_bot
+    diskwala_bot = settings.diskwala_tg_bot
+    vidbunker_bot = settings.vidbunker_tg_bot
+    flezen_url = settings.flezen_webapp_url
+    diskwala_url = settings.diskwala_webapp_url
+    vidbunker_url = settings.vidbunker_webapp_url
+    try:
+        from app.miniapps import catalog
+
+        flezen = catalog.spec("flezen")
+        diskwala = catalog.spec("diskwala")
+        vidbunker = catalog.spec("vidbunker")
+        flezen_bot = flezen_bot or flezen.tg_bot
+        diskwala_bot = diskwala_bot or diskwala.tg_bot
+        vidbunker_bot = vidbunker_bot or vidbunker.tg_bot
+        flezen_url = flezen_url or flezen.webapp_url
+        diskwala_url = diskwala_url or diskwala.webapp_url
+        vidbunker_url = vidbunker_url or vidbunker.webapp_url
+    except Exception:
+        pass
     return (
-        ServiceConfig("flezen", settings.flezen_tg_bot, settings.flezen_webapp_url),
-        ServiceConfig("diskwala", settings.diskwala_tg_bot, settings.diskwala_webapp_url),
-        ServiceConfig("vidbunker", settings.vidbunker_tg_bot, settings.vidbunker_webapp_url),
+        ServiceConfig("flezen", flezen_bot, flezen_url),
+        ServiceConfig("diskwala", diskwala_bot, diskwala_url),
+        ServiceConfig("vidbunker", vidbunker_bot, vidbunker_url),
     )
 
 
@@ -165,6 +185,12 @@ class TelegramAuthManager:
             raise RuntimeError("Telegram did not return a reusable session.")
         storage.kv_set(_SESSION_KEY, _encrypt(session))
         await self.refresh_all(force=True)
+        try:
+            from app.miniapps import catalog
+
+            asyncio.create_task(catalog.refresh_all(force=True))
+        except Exception:
+            log.info("mini-app catalog will sync on its next timer")
 
     def _clear_login_state(self) -> None:
         self._phone = ""

@@ -51,8 +51,12 @@ RUN pip install --no-cache-dir -r /app/requirements.txt \
     && chmod -R 777 "$PLAYWRIGHT_BROWSERS_PATH"
 
 COPY app /app/app
+RUN mkdir -p /app/data/tmp \
+    && chown -R teradrop:teradrop /app /ms-playwright \
+    && chmod -R a+rX /ms-playwright
 
 USER teradrop
+ENV ENV_FILE=/app/data/.env
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/', timeout=3)"

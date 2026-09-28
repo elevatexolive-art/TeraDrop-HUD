@@ -127,10 +127,19 @@ def env_path() -> Path:
     if explicit:
         return Path(explicit)
     cwd = Path.cwd() / ".env"
-    if cwd.exists():
-        return cwd
     packaged = Path(__file__).resolve().parents[1] / ".env"
-    return packaged if packaged.exists() else cwd
+    data = Path(settings.data_dir) / ".env"
+    for candidate in (cwd, packaged, data):
+        if candidate.exists():
+            return candidate
+    for candidate in (cwd, data, packaged):
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            if os.access(candidate.parent, os.W_OK):
+                return candidate
+        except OSError:
+            continue
+    return data
 
 
 def _strip_quotes(value: str) -> str:

@@ -65,6 +65,19 @@ _SKIP_HOSTS = (
 _MAX_BUNDLES = 8
 _MAX_BUNDLE_BYTES = 3_000_000
 _SYNC_LOCK_TIMEOUT = 60.0
+_PUBLIC_PAGES = {
+    "flezen": (
+        "https://flezen-downloader.pages.dev/",
+        "https://flezen.com/",
+    ),
+    "diskwala": (
+        "https://miniapp.diskwala.net/",
+        "https://www.diskwala.com/app/",
+    ),
+    "vidbunker": (
+        "https://vidbunker-ma.pages.dev/",
+    ),
+}
 
 _DEFAULTS: dict[str, dict[str, str]] = {
     "flezen": {
@@ -76,7 +89,7 @@ _DEFAULTS: dict[str, dict[str, str]] = {
         "download_method": "POST",
         "status_method": "GET",
         "aes_key_hex": "e7109544dab612bd5b80b8a427ac474ba5541b9efff7a4ca1c8ef85df2489c23",
-        "tg_bot": "",
+        "tg_bot": "flezennbot",
     },
     "diskwala": {
         "webapp_url": "https://miniapp.diskwala.net/",
@@ -483,7 +496,7 @@ class MiniAppCatalog:
                     current.bot_id = str(payload["bot_id"])
                 if payload.get("aes_key_hex"):
                     current.aes_key_hex = str(payload["aes_key_hex"])
-                if payload.get("tg_bot") and not current.tg_bot:
+                if payload.get("tg_bot"):
                     current.tg_bot = str(payload["tg_bot"])
                 if payload.get("origin"):
                     current.origin = str(payload["origin"])
@@ -583,6 +596,9 @@ class MiniAppCatalog:
         webapp = (current.webapp_url or "").strip()
         if webapp:
             urls.append(webapp)
+        for extra in _PUBLIC_PAGES.get(name, ()):
+            if extra not in urls:
+                urls.append(extra)
         try:
             from app.telegram_auth import telegram_auth
 
@@ -619,14 +635,6 @@ class MiniAppCatalog:
                 value = data.get(field_name)
                 if value in (None, "", []):
                     continue
-                if field_name == "tg_bot":
-                    current = {
-                        "flezen": settings.flezen_tg_bot,
-                        "diskwala": settings.diskwala_tg_bot,
-                        "vidbunker": settings.vidbunker_tg_bot,
-                    }.get(name) or ""
-                    if current:
-                        continue
                 updates[env_key] = str(value)
         try:
             env_manager.set_many(updates)
